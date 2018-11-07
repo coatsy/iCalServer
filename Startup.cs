@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using iCalServer.Authentication;
 using iCalServer.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -29,6 +31,41 @@ namespace iCalServer
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
             services.AddSingleton<ICalendarService, MockCalendarService>();
             services.AddScoped<IiCalBuilderService, iCalBuilderService>();
+            services.AddAuthentication(BasicAuthenticationDefaults.AuthenticationScheme)
+                .AddBasic(options =>
+                {
+                    options.Realm = "iCalServer";
+                    options.Events = new BasicAuthenticationEvents
+                    {
+                        OnValidateCredentials = context =>
+                        {
+                            if (context.Password == BasicAuthenticationDefaults.THE_PASSWORD)
+                            {
+                                var claims = new[]
+                                {
+                                    new Claim(
+                                        ClaimTypes.NameIdentifier,
+                                        context.Username,
+                                        ClaimValueTypes.String,
+                                        context.Options.ClaimsIssuer
+                                    ),
+                                    new Claim(
+                                        ClaimTypes.Name,
+                                        context.Username,
+                                        ClaimValueTypes.String,
+                                        context.Options.ClaimsIssuer
+                                    )
+                                };
+
+                                context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
+
+                                context.Success();
+                            }
+
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
          }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -45,6 +82,7 @@ namespace iCalServer
 
             app.UseHttpsRedirection();
             app.UseMvc();
+            app.UseAuthentication();
         }
     }
 }

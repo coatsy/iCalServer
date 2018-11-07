@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
 using iCalServer.Services;
+using iCalServer.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 namespace iCalServer.Controllers
 {
@@ -21,7 +23,15 @@ namespace iCalServer.Controllers
             builderService = bldSvc;
         }
 
+        [HttpGet]
+        [Authorize(AuthenticationSchemes = BasicAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<string>> GetICal()
+        {
+            return await GetICal(User.Identity.Name);
+        }
+
         [HttpGet("{userId}")]
+        [Authorize(AuthenticationSchemes = BasicAuthenticationDefaults.AuthenticationScheme)]
         public async Task<ActionResult<string>> GetICal(string userId)
         {
             return await builderService.BuildiCalString(await calenderService.GetCalendar(userId));
